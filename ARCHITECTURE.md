@@ -4,14 +4,33 @@ This document describes the foundation and inner workings of this program.
 
 ## Table of Contents
 
-- [1 | The Sound Engine](#user-content-1--the-sound-engine)
-  - [1.1 | RAM Usage](#user-content-11--ram-usage)
+- [1 | The Sound Engine](#1--the-sound-engine)
+  - [1.1 | 64-bit Precision](#11--64-bit-precision)
+  - [1.2 | RAM Usage](#12--ram-usage)
 
 ## 1 | The Sound Engine
 
 This section describes how the core sound engine works.
 
-### 1.1 | RAM Usage
+### 1.1 | 64-bit Precision
+
+Digital music has a big problem when it comes to being na&iuml;ve in development: volume control. Because of the way digital music works, you output it at any volume level you want. The problem is with who masters to what end level. There are people who aim to get the resultant song or other track to be one quarter of maximum (-12 dBFS), some people who master to half of maximum (-6 dBFS), etc. The problem comes with beginners who don't know the diffference between the scale of decibels you learned about in elementary school, and decibels full scale.
+
+I can even say for myself, that when I first started in audio, I had no idea that 0 dBFS was the maximum volume, so I would frequently try to go louder than that, and it would distort. This is called digital clipping. It occurs when an audio signal has too much amplitude to be sufficiently described within the space it was given. In digital file formats, this occurs when the number representing any individual sample was computed to a value larger than the maximum signed integer limit for the bit depth used in the format.
+
+For example, if I am using a bit depth of 24 bits, I am allowed 3 bytes per sample. So if I compute a sample to be `0x1 23 45 67`, which is larger than can fit in 23-bits (two's complement is used for signed numbers), I must clamp it down to `0x7F FF FF`.
+
+Obviously this is terrible if a file has a clipped waveform, but what about audio processing within the DAW? This is why this program uses 64-bit double precision floating point numbers for representing its samples. I know that that is quite a bit of mouthful, but can often be shortened down to be interpreted (by software enthusiasts at least) as a double data type. This data type uses 64 bits, but also stores data in the format of IEEE-754 (binary representation of numbers with decimal points).
+
+As a result, the maximum and minimum values are, quite literally, more than a googol (100 zeroes), even more than one centillion (300 zeroes), if you know what that word means. This means that we can have an enormous amount of headroom in amplitude space for effect processing, but still clamp it back down with minimal loss when it comes time.
+
+Side note: we are using decimal based arithmetic instead of integer based because of the way the decibel scale works. The decibel scale is a logarithmic scale that has a doubling point around 6 (six). IEEE-754, the standard that defines decimal based arithmetic for computers also makes it so that the larger the number, the less precision you will be able to hold to the right of the decimal point, making its precision logarithmic.
+
+The following text contains the actual definition to be used for implementation.
+
+The engine will use 64-bit floating point representations for samples, as defined in IEEE-754. Its clipping point will occur at &#177;1e0, or `0x3FF0000000000000` in IEEE-754 format. Anything above that point should be handled just like any other value. The only point at which it will make a difference is at the Master OUT pipe, at which it will clamp values down to this point, and convert to integers to be handled by an external destination, be it disk, speakers, or otherwise.
+
+### 1.2 | RAM Usage
 
 Random Access Memory, or RAM for short, is the very component of your computer that allows it to do so much. Typically, you will see laptops around these days with 8 to 16 gigabytes of memory.
 
@@ -23,7 +42,7 @@ In reality, your computer screen, a YouTube video, etc. are only showing you a s
 
 To draw a direct corellation between audio and video, the size of a frame is your bit depth, and the number of frames you show each second is your sample rate. The name given to an audio frame is a "sample."
 
-Starting off with some math, we know that the engine uses 64-bit (double precsision) floating point values. Each number is 8 bytes long, aka, a quadrouple word. The minimum sample rate possible for consumer-grade music to not sound muffled is 44,100 hertz, or 44.1 kilohertz. This is because the average maximum frequency that can be heard by a human ear is 20,000 hertz. The extra 2,050 hertz on the end is there because of the way digital music gets recorded from anologue sources. As you may imagine, that is a story for another day.
+Starting off with some math, we know that the engine uses 64-bit (double precision) floating point values. Each number is 8 bytes long, aka, a quadrouple word. The minimum sample rate possible for consumer-grade music to not sound muffled is 44,100 hertz, or 44.1 kilohertz. This is because the average maximum frequency that can be heard by a human ear is 20,000 hertz. The extra 2,050 hertz on the end is there because of the way digital music gets recorded from anologue sources. As you may imagine, that is a story for another day.
 
 So, finally, assuming we are using 64-bit values at a sample rate of 44,100 Hz, a single second of audio takes:
 
