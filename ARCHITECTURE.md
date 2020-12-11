@@ -4,8 +4,8 @@ This document describes the foundation and inner workings of this program.
 
 ## Table of Contents
 
-- [1 | The Sound Engine](#1-the-sound-engine)
-  - [1.1 | RAM Usage](#1-1-ram-usage)
+- [1 | The Sound Engine](#user-content-1--the-sound-engine)
+  - [1.1 | RAM Usage](#user-content-11--ram-usage)
 
 ## 1 | The Sound Engine
 
